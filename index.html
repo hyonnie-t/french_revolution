@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>프랑스 혁명 타임라인</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="previewBanner" class="preview-banner" hidden>미리보기 모드예요. 기록은 저장되지 않아요</div>
+<header class="topbar">
+  <div class="topbar-inner">
+    <p class="app-name">프랑스 혁명 타임라인</p>
+    <p id="progressText" class="progress-text" aria-live="polite"></p>
+  </div>
+  <div class="progress-track" aria-hidden="true"><div id="progressFill" class="progress-fill"></div></div>
+  <ol id="stepBar" class="stepbar" aria-label="진행 단계"></ol>
+</header>
+<main id="screen" class="screen"></main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="modalRoot"></div>
+
+<script src="snippets/focus_guard.js"></script>
+<script src="snippets/glossary.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
