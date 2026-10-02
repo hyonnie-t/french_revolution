@@ -105,6 +105,9 @@ h3 { font-size: 16px; line-height: 24px; font-weight: 700; }
 .callout svg { flex: none; margin-top: 2px; }
 .situation { border-left: 4px solid var(--stroke-brand-solid); padding: var(--x2) var(--x3); background: var(--bg-layer-basement); border-radius: 0 var(--r2) var(--r2) 0; }
 .role-tag { font-weight: 700; color: var(--fg-brand); }
+.type-name { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--fg-brand-contrast); }
+.guide-title { margin: 0 0 var(--x1); font-weight: 700; }
+.guide { margin: 0; padding-left: 1.25em; display: flex; flex-direction: column; gap: var(--x1); }
 
 .scene-figure { margin: 0; border-radius: var(--r4); overflow: hidden; background: var(--bg-neutral-weak); }
 .scene-figure img { display: block; width: 100%; height: auto; }
