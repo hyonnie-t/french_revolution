@@ -29,11 +29,11 @@ const UI = {
   recapTitle: '내가 따라온 혁명',
   firstThought: '처음 생각',
   goScene: '이 장면으로',
-  chosen: '고른 선택',
+  chosen: '내 선택',
   reasonWord: '이유',
   clauseRecap: '고른 조항',
   writeTitle: '마무리 글',
-  copy: '내 글 복사', copied: '복사했어요', copyFail: '복사하지 못했어요. 글을 직접 선택해서 복사해 주세요',
+  copy: '내 글 복사하기', copied: '복사했어요', copyFail: '복사하지 못했어요. 글을 직접 선택해서 복사해 주세요',
   submit: '기록하기', submitAgain: '다시 기록하기', submitting: '기록하는 중', submitted: '기록했어요',
   submitFail: '기록하지 못했어요. 다시 시도해 주세요', submitPreview: '미리보기에서는 저장하지 않아요',
   needAllFinale: '마무리 글을 모두 채우면 복사하고 기록할 수 있어요',
@@ -131,8 +131,8 @@ function hintBox(text) {
   ]);
 }
 
-function textareaField(value, onInput, labelText) {
-  const ta = h('textarea', { class: 'textarea', rows: 3, 'aria-label': labelText, placeholder: '' });
+function textareaField(value, onInput, labelText, rows) {
+  const ta = h('textarea', { class: 'textarea', rows: rows || 3, 'aria-label': labelText, placeholder: '' });
   ta.value = value || '';
   ta.addEventListener('input', function () { onInput(ta.value); });
   return ta;
@@ -358,7 +358,7 @@ function buildCopyText() {
   const cl = CLAUSES.filter(function (c) { return state.clauses.indexOf(c.id) >= 0; }).map(function (c) { return c.id; });
   lines.push('[고른 조항] ' + cl.join(', ') + ' / 이유: ' + oneLine(state.clauseReason));
   const f = state.finale;
-  lines.push('[마무리] 조항 ' + f.clause + ' · 장면 ' + f.scene + ' · 판단: ' + f.verdict + ' / 이유: ' + oneLine(f.reason));
+  lines.push('[마무리] 조항 ' + f.clause + ' · 장면 ' + f.scene + ' · 판단: ' + f.verdict + ' / 일기: ' + oneLine(f.reason));
   return lines.join('\n');
 }
 function copyText(text) {
@@ -379,7 +379,7 @@ async function submitRecord(btn) {
   if (PREVIEW) { toast(UI.submitPreview); return; }
   const f = state.finale, role = roleObj();
   const cl = state.clauses.slice().sort(function (a, b) { return parseInt(a.replace(/\D/g, ''), 10) - parseInt(b.replace(/\D/g, ''), 10); });
-  const finaleLine = '[마무리] 조항 ' + f.clause + ' · 장면 ' + f.scene + ' · 판단: ' + f.verdict + ' / 이유: ' + oneLine(f.reason);
+  const finaleLine = '[마무리] 조항 ' + f.clause + ' · 장면 ' + f.scene + ' · 판단: ' + f.verdict + ' / 일기: ' + oneLine(f.reason);
   const body = {
     studentId: state.sid, studentName: state.name, gameName: CONFIG.GAME_NAME,
     choiceSummary: (role ? role.name : '') + ' / 조항 ' + cl.join(', ') + ' / ' + f.clause + '·장면 ' + f.scene + '·' + f.verdict,
@@ -447,14 +447,16 @@ function renderFinale(root) {
   FINALE.verdicts.forEach(function (v) {
     fs3.appendChild(choiceEl('radio', 'fv', v, h('span', { text: v }), '', f.verdict === v, function () { f.verdict = v; storeSet(); refreshFinale(); }));
   });
-  const ta = textareaField(f.reason, function (v) { f.reason = v; storeSet(); refreshFinale(); }, FINALE.step4);
+  const ta = textareaField(f.reason, function (v) { f.reason = v; storeSet(); refreshFinale(); }, FINALE.step4, 7);
+  const diaryCtx = h('p', { class: 'role-tag', id: 'diaryCtx' });
 
   const copyBtn = h('button', { type: 'button', class: 'btn btn-primary', id: 'copyBtn', onclick: function () { if (finaleComplete()) copyText(buildCopyText()); } }, UI.copy);
   const subBtn = h('button', { type: 'button', class: 'btn btn-outline', id: 'subBtn', onclick: function () { if (finaleComplete()) submitRecord(subBtn); } }, state.submitted ? UI.submitAgain : UI.submit);
   root.appendChild(h('section', { class: 'card' }, [
     h('h2', { text: UI.writeTitle }),
     fs1, fs2, fs3,
-    h('div', { class: 'field' }, [h('p', { class: 'field-label', text: FINALE.step4 }), ta]),
+    h('p', { class: 'muted', text: FINALE.diaryNotice }),
+    h('div', { class: 'field' }, [h('p', { class: 'field-label', text: FINALE.step4 }), diaryCtx, ta]),
     hintBox(FINALE.hint),
     h('p', { class: 'muted', id: 'finaleNote', text: UI.needAllFinale }),
     h('div', { class: 'btn-row' }, [copyBtn, subBtn])
@@ -468,6 +470,14 @@ function renderFinale(root) {
 function refreshFinale() {
   const ok = finaleComplete();
   const c = document.getElementById('copyBtn'), s = document.getElementById('subBtn'), n = document.getElementById('finaleNote');
+  const dc = document.getElementById('diaryCtx');
+  if (dc) {
+    const sc = state.finale.scene ? sceneById(Number(state.finale.scene)) : null;
+    const r = roleObj();
+    const a = sc ? state.answers[sc.id] : null;
+    dc.hidden = !sc;
+    dc.textContent = sc ? '일기 날짜 ' + sc.date + ' · ' + sc.title + ' · ' + UI.roleLabel + ' ' + (r ? r.name : '') + (a && a.opt ? ' · ' + UI.chosen + ' ' + a.opt : '') : '';
+  }
   if (c) c.disabled = !ok;
   if (s && s.textContent !== UI.submitting) s.disabled = !ok;
   if (n) n.hidden = ok;
