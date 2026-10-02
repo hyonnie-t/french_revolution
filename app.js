@@ -453,6 +453,39 @@ function renderRecap(root) {
 }
 
 /* ───────── 화면: 글쓰기 ───────── */
+/* 일기 문장 시작: 앞부분만 넣는다. 결론은 넣지 않고, 판단은 학생이 위에서 고른 것만 쓴다 */
+function insertAtCursor(ta, text) {
+  const v = ta.value;
+  const pos = typeof ta.selectionStart === 'number' ? ta.selectionStart : v.length;
+  const end = typeof ta.selectionEnd === 'number' ? ta.selectionEnd : pos;
+  const before = v.slice(0, pos);
+  const lead = before && !/\s$/.test(before) ? ' ' : '';
+  ta.value = before + lead + text + v.slice(end);
+  const caret = (before + lead + text).length;
+  ta.focus();
+  try { ta.setSelectionRange(caret, caret); } catch (e) { /* 무시 */ }
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function addStarter(i, ta) {
+  const f = state.finale;
+  const sc = f.scene ? sceneById(Number(f.scene)) : null;
+  let text = '';
+  if (i === 0) {
+    if (!sc) { toast(FINALE.needScene); return; }
+    const p = sc.date.split('.');
+    text = p[0] + '년 ' + p[1] + '월. 오늘은 ';
+  } else if (i === 1) {
+    text = '나는 이렇게 하기로 했다. 그렇게 한 이유는 ';
+  } else if (i === 2) {
+    if (!f.clause) { toast(FINALE.needClause); return; }
+    text = f.clause + '에 적힌 말을 떠올리면, 오늘 내 하루는 ';
+  } else {
+    if (!f.verdict) { toast(FINALE.needVerdict); return; }
+    text = '그래서 나는 이 조항이 오늘 ' + FINALE.verdictForm[f.verdict] + '. 왜냐하면 ';
+  }
+  insertAtCursor(ta, text);
+}
+
 function renderWrite(root) {
   const f = state.finale;
 
@@ -476,6 +509,15 @@ function renderWrite(root) {
   });
   const ta = textareaField(f.reason, function (v) { f.reason = v; storeSet(); refreshFinale(); }, FINALE.step4, 7);
   const diaryCtx = h('div', { class: 'situation', id: 'diaryCtx', hidden: true });
+  const starter = h('details', {}, [
+    h('summary', {}, [svg(ICON.chev), FINALE.starterToggle]),
+    h('div', { class: 'details-body' }, [
+      h('p', { class: 'muted', text: FINALE.starterNote }),
+      h('div', { class: 'btn-row' }, FINALE.starterLabels.map(function (label, i) {
+        return h('button', { type: 'button', class: 'btn btn-outline', onclick: function () { addStarter(i, ta); } }, label);
+      }))
+    ])
+  ]);
 
   const copyBtn = h('button', { type: 'button', class: 'btn btn-primary', id: 'copyBtn', onclick: function () { if (finaleComplete()) copyText(buildCopyText()); } }, UI.copy);
   const subBtn = h('button', { type: 'button', class: 'btn btn-outline', id: 'subBtn', onclick: function () { if (finaleComplete()) submitRecord(subBtn); } }, state.submitted ? UI.submitAgain : UI.submit);
@@ -492,9 +534,10 @@ function renderWrite(root) {
     h('div', { id: 'sceneReread' }),
     h('div', { class: 'field' }, [
       h('p', { class: 'guide-title', text: FINALE.diaryGuideTitle }),
-      h('ul', { class: 'guide' }, FINALE.diaryGuide.map(function (t) { return h('li', { text: t }); }))
+      h('ol', { class: 'guide' }, FINALE.diaryGuide.map(function (t) { return h('li', { text: t }); }))
     ]),
     h('div', { class: 'field' }, [h('p', { class: 'field-label', text: FINALE.step4 }), ta]),
+    starter,
     hintBox(FINALE.hint),
     h('p', { class: 'muted', id: 'finaleNote', text: UI.needAllFinale }),
     h('div', { class: 'btn-row' }, [copyBtn, subBtn])
