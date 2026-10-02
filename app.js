@@ -15,6 +15,8 @@ const UI = {
   needSid: '학번 5자리를 숫자로 적어 주세요',
   needName: '이름을 적어 주세요',
   introAnswerLabel: '내 생각 쓰기 (비어 있어도 시작할 수 있어요)',
+  introCommoner: '평민 대표 입장',
+  introNoble: '성직자·귀족 대표 입장',
   roleTitle: '역할을 골라요',
   roleDesc: '셋 다 제3 신분(평민)이에요. 고른 역할의 눈으로 장면을 따라가요.',
   needRole: '역할을 골라 주세요',
@@ -54,7 +56,7 @@ function storeSet() { try { localStorage.setItem(CONFIG.STORE_KEY, JSON.stringif
 function storeDel() { try { localStorage.removeItem(CONFIG.STORE_KEY); } catch (e) { /* 무시 */ } }
 
 function freshState(sid, name) {
-  return { sid: sid, name: name, intro: '', role: '', step: 'intro', answers: {}, clauses: [], clauseReason: '',
+  return { sid: sid, name: name, introA: '', introB: '', role: '', step: 'intro', answers: {}, clauses: [], clauseReason: '',
     finale: { clause: '', scene: '', verdict: '', reason: '' }, submitted: false, returnToFinale: false };
 }
 
@@ -190,8 +192,10 @@ function renderIntro(root) {
   sidInput.addEventListener('input', function () { state.sid = sidInput.value.replace(/\D/g, '').slice(0, 5); sidInput.value = state.sid; clearError(sidErr, sidInput); storeSet(); });
   nameInput.addEventListener('input', function () { state.name = nameInput.value; clearError(nameErr, nameInput); storeSet(); });
 
-  const ta = textareaField(state.intro, function (v) { state.intro = v; storeSet(); }, UI.introAnswerLabel);
-  ta.id = 'introAns';
+  const taA = textareaField(state.introA, function (v) { state.introA = v; storeSet(); }, UI.introCommoner);
+  taA.id = 'introA';
+  const taB = textareaField(state.introB, function (v) { state.introB = v; storeSet(); }, UI.introNoble);
+  taB.id = 'introB';
 
   root.appendChild(h('section', { class: 'card' }, [
     h('h1', { text: UI.introTitle }),
@@ -201,7 +205,9 @@ function renderIntro(root) {
   root.appendChild(h('section', { class: 'card' }, [
     h('h2', { text: UI.firstThought }),
     h('p', { text: INTRO.question }),
-    h('div', { class: 'field' }, [h('label', { class: 'field-label', for: 'introAns', text: UI.introAnswerLabel }), ta])
+    h('p', { class: 'muted', text: UI.introAnswerLabel }),
+    h('div', { class: 'field' }, [h('label', { class: 'field-label', for: 'introA', text: UI.introCommoner }), taA]),
+    h('div', { class: 'field' }, [h('label', { class: 'field-label', for: 'introB', text: UI.introNoble }), taB])
   ]));
   root.appendChild(h('section', { class: 'card' }, [
     h('h2', { text: UI.idTitle }),
@@ -340,7 +346,8 @@ function buildCopyText() {
   const role = roleObj();
   const lines = [];
   lines.push('[역할] ' + (role ? role.name : ''));
-  if (oneLine(state.intro)) lines.push('[처음 생각] ' + oneLine(state.intro));
+  const ia = oneLine(state.introA), ib = oneLine(state.introB);
+  if (ia || ib) lines.push('[처음 생각] ' + [ia ? UI.introCommoner.replace(' 입장', '') + ': ' + ia : '', ib ? UI.introNoble.replace(' 입장', '') + ': ' + ib : ''].filter(Boolean).join(' / '));
   SCENES.forEach(function (s) {
     const a = state.answers[s.id];
     if (!a || !a.opt) return;
@@ -379,7 +386,7 @@ async function submitRecord(btn) {
     diffSummary: '',
     reflection: finaleLine,
     // 주의: 백엔드 칭호 판정이 choicesJson.role 을 읽으므로 역할 키 이름은 persona 로 쓴다
-    choicesJson: JSON.stringify({ persona: state.role, intro: state.intro, scenes: state.answers, clauses: cl, clauseReason: state.clauseReason, finale: f })
+    choicesJson: JSON.stringify({ persona: state.role, intro: { commoner: state.introA, noble: state.introB }, scenes: state.answers, clauses: cl, clauseReason: state.clauseReason, finale: f })
   };
   Object.assign(body, window.FocusGuard ? FocusGuard.payload() : {});
   btn.disabled = true; btn.textContent = UI.submitting;
@@ -402,7 +409,9 @@ function renderFinale(root) {
   root.appendChild(h('section', { class: 'card' }, [
     h('h1', { text: UI.recapTitle }),
     h('p', { class: 'role-tag', text: UI.roleLabel + ' · ' + (role ? role.name : '') }),
-    oneLine(state.intro) ? h('div', { class: 'recap' }, [h('p', { class: 'q', text: UI.firstThought }), h('p', { class: 'a', text: state.intro })]) : null
+    (oneLine(state.introA) || oneLine(state.introB)) ? h('div', { class: 'recap' }, [h('p', { class: 'q', text: UI.firstThought }),
+      oneLine(state.introA) ? h('p', { class: 'q', text: UI.introCommoner }) : null, oneLine(state.introA) ? h('p', { class: 'a', text: state.introA }) : null,
+      oneLine(state.introB) ? h('p', { class: 'q', text: UI.introNoble }) : null, oneLine(state.introB) ? h('p', { class: 'a', text: state.introB }) : null]) : null
   ]));
 
   SCENES.forEach(function (s) {
@@ -518,6 +527,7 @@ function init() {
   const qName = (params.get('name') || '').trim();
   const saved = storeGet();
   if (saved && saved.step && STEPS.indexOf(saved.step) >= 0 && (!qSid || qSid === saved.sid)) state = Object.assign(freshState('', ''), saved);
+  if (saved && saved.intro && !state.introA && !state.introB) state.introA = saved.intro;
   if (qSid && !state.sid) state.sid = qSid;
   if (qName && !state.name) state.name = qName;
   if (PREVIEW) {
