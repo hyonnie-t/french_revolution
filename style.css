@@ -105,6 +105,13 @@ h3 { font-size: 16px; line-height: 24px; font-weight: 700; }
 .callout svg { flex: none; margin-top: 2px; }
 .situation { border-left: 4px solid var(--stroke-brand-solid); padding: var(--x2) var(--x3); background: var(--bg-layer-basement); border-radius: 0 var(--r2) var(--r2) 0; }
 .role-tag { font-weight: 700; color: var(--fg-brand); }
+.portrait { flex: none; display: block; width: 64px; height: 64px; border-radius: 50%; object-fit: cover; object-position: 50% 30%; background: var(--bg-neutral-weak); box-shadow: 0 0 0 2px var(--stroke-neutral-subtle); }
+.portrait-sm { width: 80px; height: 80px; }
+.choice .portrait { align-self: center; }
+#diaryCtx:not([hidden]) { display: flex; align-items: center; gap: var(--x3); }
+#diaryCtx .diary-text { min-width: 0; display: flex; flex-direction: column; gap: var(--x1); }
+#diaryCtx .diary-text p { margin: 0; }
+@media (max-width: 400px) { .portrait { width: 56px; height: 56px; } .portrait-sm { width: 64px; height: 64px; } }
 .type-name { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--fg-brand-contrast); }
 .guide-title { margin: 0 0 var(--x1); font-weight: 700; }
 .guide { margin: 0; padding-left: 1.25em; display: flex; flex-direction: column; gap: var(--x1); }

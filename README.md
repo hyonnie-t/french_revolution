@@ -7,6 +7,7 @@
 - 기록: 글쓰기 화면 "기록하기"가 history26_backend 기본 제출 경로(`gameName` 필수)로 POST. `choicesJson`의 역할 키는 `persona`(백엔드 칭호 판정이 `role` 키를 읽음)
 - 임시값: `CONFIG.GAME_NAME = '프랑스혁명_타임라인'` — 포털 차시 id가 정해지면 교체
 - 장면 이미지: `assets/scenes/scene-N.webp` 를 넣고 `data.js`의 `image.src`만 채우면 된다(비어 있거나 파일이 없으면 영역 숨김)
+- 역할 초상: `assets/roles/{rich,paris,farmer}.webp`(240px) — `data.js` ROLES의 `portrait`로 연결. 역할 고르는 카드와 일기 칸 위 상자(`#diaryCtx`)에만 표시하고 장면 카드에는 넣지 않는다(폰 스크롤 길이)
 
 ## 검증 상태 (학생 화면에는 표시하지 않음)
 - 교과서 밖 사실은 핸드오프 9번 목록(위키백과 2차 확인)만 사용. 학교 자료로 공유하기 전 1차 자료 대조 필요

@@ -7,9 +7,9 @@ const INTRO = {
 };
 
 const ROLES = [
-  { id: 'rich',   name: '부유한 시민', desc: '장사로 재산을 모았지만 신분은 평민이에요.' },
-  { id: 'paris',  name: '파리 민중',   desc: '재산이 많지 않아 하루하루 일해서 살아가는 파리의 평민이에요.' },
-  { id: 'farmer', name: '농민',        desc: '시골에서 농사를 지으며 세금과 영주에게 내는 부담을 감당하는 평민이에요.' }
+  { id: 'rich',   name: '부유한 시민', desc: '장사로 재산을 모았지만 신분은 평민이에요.', portrait: 'assets/roles/rich.webp' },
+  { id: 'paris',  name: '파리 민중',   desc: '재산이 많지 않아 하루하루 일해서 살아가는 파리의 평민이에요.', portrait: 'assets/roles/paris.webp' },
+  { id: 'farmer', name: '농민',        desc: '시골에서 농사를 지으며 세금과 영주에게 내는 부담을 감당하는 평민이에요.', portrait: 'assets/roles/farmer.webp' }
 ];
 
 const CLAUSES = [

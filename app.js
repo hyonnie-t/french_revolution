@@ -120,6 +120,13 @@ function choiceEl(kind, name, value, label, sub, checked, onChange) {
   const body = h('span', { class: 'body' }, [text, sub ? h('span', { class: 'sub', text: sub }) : null]);
   return h('div', { class: 'choice' + (kind === 'checkbox' ? ' is-check' : '') }, [input, h('span', { class: 'mark' }, svg(ICON.check)), body]);
 }
+/* 역할 초상(장식): 파일이 없으면 조용히 숨는다. 이름은 옆 글자에 이미 있으므로 alt는 비운다 */
+function portraitEl(role, cls) {
+  if (!role || !role.portrait) return null;
+  const img = h('img', { class: cls, src: role.portrait, alt: '', loading: 'lazy', width: 80, height: 80 });
+  img.addEventListener('error', function () { img.hidden = true; });
+  return img;
+}
 function choiceLabel(idText, text) {
   return h('span', {}, [h('span', { class: 'id', text: idText }), text]);
 }
@@ -230,9 +237,12 @@ function renderRole(root) {
   const err = errorEl('roleErr');
   const fs = h('fieldset', { class: 'choices' }, [h('legend', { class: 'sr-only', text: UI.roleTitle })]);
   ROLES.forEach(function (r) {
-    fs.appendChild(choiceEl('radio', 'role', r.id, h('span', { class: 'id', text: r.name }), r.desc, state.role === r.id, function () {
+    const ce = choiceEl('radio', 'role', r.id, h('span', { class: 'id', text: r.name }), r.desc, state.role === r.id, function () {
       state.role = r.id; storeSet(); clearError(err);
-    }));
+    });
+    const pt = portraitEl(r, 'portrait');
+    if (pt) ce.insertBefore(pt, ce.querySelector('.body'));
+    fs.appendChild(ce);
   });
   root.appendChild(h('section', { class: 'card' }, [h('h1', { text: UI.roleTitle }), h('p', { class: 'muted', text: UI.roleDesc }), fs, err]));
   root.appendChild(navRow({
@@ -560,12 +570,16 @@ function refreshFinale() {
     if (f.clause) parts.push('고른 조항 ' + f.clause);
     if (f.verdict) parts.push('내 판단 ' + f.verdict);
     dc.textContent = '';
+    const box = h('div', { class: 'diary-text' });
     if (sc) {
-      dc.appendChild(h('p', { class: 'role-tag', text: '일기 날짜 ' + sc.date + ' · 장면 ' + sc.id + ' · ' + UI.roleLabel + ' ' + (r ? r.name : '') }));
-      if (a && a.opt) dc.appendChild(h('p', { text: '그날 내 선택 ' + a.opt + '. ' + optText(sc, a.opt) }));
+      box.appendChild(h('p', { class: 'role-tag', text: '일기 날짜 ' + sc.date + ' · 장면 ' + sc.id + ' · ' + UI.roleLabel + ' ' + (r ? r.name : '') }));
+      if (a && a.opt) box.appendChild(h('p', { text: '그날 내 선택 ' + a.opt + '. ' + optText(sc, a.opt) }));
     }
-    if (parts.length) dc.appendChild(h('p', { text: parts.join(' · ') }));
-    dc.hidden = !dc.childNodes.length;
+    if (parts.length) box.appendChild(h('p', { text: parts.join(' · ') }));
+    const pt = portraitEl(r, 'portrait portrait-sm');
+    if (pt) dc.appendChild(pt);
+    dc.appendChild(box);
+    dc.hidden = !box.childNodes.length;
   }
   const rr = document.getElementById('sceneReread');
   if (rr && rr.dataset.scene !== String(state.finale.scene || '')) {
