@@ -20,15 +20,15 @@ const UI = {
   roleTitle: '역할을 골라요',
   roleDesc: '셋 다 제3 신분(평민)이에요. 고른 역할의 눈으로 장면을 따라가요.',
   needRole: '역할을 골라 주세요',
-  clauseCount: '조항을 2개 골라 주세요',
+  clauseCount: '조항을 1개나 2개 골라 주세요',
   clauseMax: '2개까지만 고를 수 있어요',
   clauseTitle: '인권 선언 조항',
   stepClause: '장면 3-1',
   stepChoice: '장면 3-2',
-  start: '시작하기', next: '다음', prev: '이전', toFinale: '돌아보기로', backToFinale: '돌아보기로 돌아가기', toWrite: '글쓰기로',
+  start: '시작하기', next: '다음', prev: '이전', toFinale: '돌아보기로', toWrite: '글쓰기로',
   recapTitle: '내가 따라온 혁명',
   firstThought: '처음 생각',
-  goScene: '이 장면으로',
+  rereadScene: '그 장면 다시 읽기',
   chosen: '내 선택',
   reasonWord: '이유',
   clauseRecap: '고른 조항',
@@ -57,7 +57,7 @@ function storeDel() { try { localStorage.removeItem(CONFIG.STORE_KEY); } catch (
 
 function freshState(sid, name) {
   return { sid: sid, name: name, introA: '', introB: '', role: '', step: 'intro', answers: {}, clauses: [], clauseReason: '',
-    finale: { clause: '', scene: '', verdict: '', reason: '' }, submitted: false, returnToFinale: false };
+    finale: { clause: '', scene: '', verdict: '', reason: '' }, submitted: false };
 }
 
 /* ───────── DOM 도우미 ───────── */
@@ -177,11 +177,8 @@ function navRow(opts) {
   kids.push(h('button', { type: 'button', class: 'btn btn-primary', onclick: opts.next }, [opts.nextLabel, svg(ICON.chev)]));
   return h('div', { class: 'nav-row' }, kids);
 }
-function prevHandler() { return function () { state.returnToFinale = false; go(stepNeighbor(-1)); }; }
-function afterScene() {
-  if (state.returnToFinale) { state.returnToFinale = false; go('recap'); return; }
-  go(stepNeighbor(1));
-}
+function prevHandler() { return function () { go(stepNeighbor(-1)); }; }
+function afterScene() { go(stepNeighbor(1)); }
 
 /* ───────── 화면: 시작 ───────── */
 function renderIntro(root) {
@@ -291,7 +288,7 @@ function renderScene(root, scene, isSub) {
   q.push(hintBox(scene.hint));
   root.appendChild(h('section', { class: 'card' }, q));
 
-  const nextLabel = state.returnToFinale ? UI.backToFinale : (scene.id === 6 ? UI.toFinale : UI.next);
+  const nextLabel = scene.id === 6 ? UI.toFinale : UI.next;
   root.appendChild(navRow({
     prev: prevHandler(), nextLabel: nextLabel,
     next: function () {
@@ -306,7 +303,7 @@ function renderScene(root, scene, isSub) {
 function renderClauses(root) {
   const scene = sceneById(3);
   const err = errorEl('clauseErr'), reasonErr = errorEl('reasonErr');
-  const fs = h('fieldset', { class: 'choices' }, [h('legend', { text: scene.clausePrompt })]);
+  const fs = h('fieldset', { class: 'choices' }, [h('legend', { text: scene.clausePrompt }), h('p', { class: 'muted', text: scene.clauseNote })]);
   CLAUSES.forEach(function (c) {
     fs.appendChild(choiceEl('checkbox', 'clause', c.id, choiceLabel(c.id, ' ' + c.text), '', state.clauses.indexOf(c.id) >= 0, function (input) {
       if (input.checked) {
@@ -331,7 +328,7 @@ function renderClauses(root) {
   root.appendChild(navRow({
     prev: prevHandler(), nextLabel: UI.next,
     next: function () {
-      if (state.clauses.length !== 2) { showError(err, UI.clauseCount, fs.querySelector('input')); return; }
+      if (state.clauses.length < 1) { showError(err, UI.clauseCount, fs.querySelector('input')); return; }
       if (!state.clauseReason.trim()) { showError(reasonErr, COMMON_TEXT.needReason, ta); return; }
       go('s3b');
     }
@@ -429,10 +426,7 @@ function renderRecap(root) {
   SCENES.forEach(function (s) {
     const a = state.answers[s.id] || { opt: '', reason: '' };
     const kids = [
-      h('div', { class: 'recap-head' }, [
-        h('div', { class: 'card-title' }, [h('span', { class: 'date-chip', text: s.date }), h('h3', { text: '장면 ' + s.id + ' · ' + s.title })]),
-        h('button', { type: 'button', class: 'btn btn-outline', 'aria-label': UI.goScene + ': 장면 ' + s.id, onclick: function () { state.returnToFinale = true; go(s.id === 3 ? 's3a' : 's' + s.id); } }, UI.goScene)
-      ]),
+      h('div', { class: 'card-title' }, [h('span', { class: 'date-chip', text: s.date }), h('h3', { text: '장면 ' + s.id + ' · ' + s.title })]),
       h('p', { class: 'q', text: UI.chosen }),
       h('p', { class: 'a', text: a.opt ? a.opt + '. ' + optText(s, a.opt) : '' })
     ];
@@ -463,8 +457,12 @@ function renderWrite(root) {
   const f = state.finale;
 
   /* 기본 선택 없음. 일기 안내는 쓸 내용의 방향만 알려 주고 예시 문장은 주지 않는다 */
-  const fs1 = h('fieldset', { class: 'choices' }, [h('legend', { text: FINALE.step1 })]);
-  CLAUSES.filter(function (c) { return state.clauses.indexOf(c.id) >= 0; }).forEach(function (c) {
+  const chosenClauses = CLAUSES.filter(function (c) { return state.clauses.indexOf(c.id) >= 0; });
+  if (chosenClauses.length === 1) { f.clause = chosenClauses[0].id; storeSet(); }
+  const fs1 = chosenClauses.length === 1
+    ? h('div', { class: 'recap' }, [h('p', { class: 'q', text: FINALE.step1one }), h('p', { class: 'a', text: chosenClauses[0].id + ' ' + chosenClauses[0].text })])
+    : h('fieldset', { class: 'choices' }, [h('legend', { text: FINALE.step1 })]);
+  if (chosenClauses.length !== 1) chosenClauses.forEach(function (c) {
     fs1.appendChild(choiceEl('radio', 'fc', c.id, choiceLabel(c.id, ' ' + c.text), '', f.clause === c.id, function () { f.clause = c.id; storeSet(); refreshFinale(); }));
   });
   const fs2 = h('fieldset', { class: 'choices' }, [h('legend', { text: FINALE.step2 })]);
@@ -491,6 +489,7 @@ function renderWrite(root) {
     h('h2', { text: UI.diaryTitle }),
     h('p', { class: 'muted', text: FINALE.diaryNotice }),
     diaryCtx,
+    h('div', { id: 'sceneReread' }),
     h('div', { class: 'field' }, [
       h('p', { class: 'guide-title', text: FINALE.diaryGuideTitle }),
       h('ul', { class: 'guide' }, FINALE.diaryGuide.map(function (t) { return h('li', { text: t }); }))
@@ -524,6 +523,13 @@ function refreshFinale() {
     }
     if (parts.length) dc.appendChild(h('p', { text: parts.join(' · ') }));
     dc.hidden = !dc.childNodes.length;
+  }
+  const rr = document.getElementById('sceneReread');
+  if (rr && rr.dataset.scene !== String(state.finale.scene || '')) {
+    rr.dataset.scene = String(state.finale.scene || '');
+    rr.textContent = '';
+    const rs = state.finale.scene ? sceneById(Number(state.finale.scene)) : null;
+    if (rs) rr.appendChild(h('details', {}, [h('summary', {}, [svg(ICON.chev), UI.rereadScene]), h('div', { class: 'details-body' }, h('p', { text: rs.common }))]));
   }
   if (c) c.disabled = !ok;
   if (s && s.textContent !== UI.submitting) s.disabled = !ok;
