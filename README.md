@@ -4,7 +4,7 @@
 
 - 파일: `index.html` / `style.css` / `data.js`(학생 화면 문구, 핸드오프 5번) / `app.js`(화면·상태·제출) / `snippets/`(focus_guard, glossary — history26 레포 사본)
 - URL 파라미터: `?sid=20512&name=이름` 자동채움, `?preview=1` 미리보기(저장 안 함)
-- 기록: 마무리 화면 "기록하기"가 history26_backend 기본 제출 경로(`gameName` 필수)로 POST. `choicesJson`의 역할 키는 `persona`(백엔드 칭호 판정이 `role` 키를 읽음)
+- 기록: 글쓰기 화면 "기록하기"가 history26_backend 기본 제출 경로(`gameName` 필수)로 POST. `choicesJson`의 역할 키는 `persona`(백엔드 칭호 판정이 `role` 키를 읽음)
 - 임시값: `CONFIG.GAME_NAME = '프랑스혁명_타임라인'` — 포털 차시 id가 정해지면 교체
 - 장면 이미지: `assets/scenes/scene-N.webp` 를 넣고 `data.js`의 `image.src`만 채우면 된다(비어 있거나 파일이 없으면 영역 숨김)
 

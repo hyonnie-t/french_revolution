@@ -7,7 +7,7 @@ const CONFIG = {
 };
 
 const UI = {
-  stepNames: ['시작 질문', '역할', '장면 1', '장면 2', '장면 3', '장면 4', '장면 5', '장면 6', '마무리'],
+  stepNames: ['시작 질문', '역할', '장면 1', '장면 2', '장면 3', '장면 4', '장면 5', '장면 6', '돌아보기', '글쓰기'],
   introTitle: '프랑스 혁명 타임라인',
   idTitle: '누구의 기록인지 알려 줘요',
   sidLabel: '학번 (5자리)',
@@ -23,14 +23,14 @@ const UI = {
   clauseTitle: '인권 선언 조항',
   stepClause: '장면 3-1',
   stepChoice: '장면 3-2',
-  start: '시작하기', next: '다음', prev: '이전', toFinale: '마무리로', backToFinale: '마무리로 돌아가기',
+  start: '시작하기', next: '다음', prev: '이전', toFinale: '돌아보기로', backToFinale: '돌아보기로 돌아가기', toWrite: '글쓰기로',
   recapTitle: '내가 따라온 혁명',
   firstThought: '처음 생각',
   goScene: '이 장면으로',
   chosen: '내 선택',
   reasonWord: '이유',
   clauseRecap: '고른 조항',
-  writeTitle: '마무리 글',
+  writeTitle: '마무리 글', writeLead: '먼저 판단을 고르고, 그 판단으로 일기를 써요.', diaryTitle: '일기 쓰기',
   copy: '내 글 복사하기', copied: '복사했어요', copyFail: '복사하지 못했어요. 글을 직접 선택해서 복사해 주세요',
   submit: '기록하기', submitAgain: '다시 기록하기', submitting: '기록하는 중', submitted: '기록했어요',
   submitFail: '기록하지 못했어요. 다시 시도해 주세요', submitPreview: '미리보기에서는 저장하지 않아요',
@@ -41,7 +41,7 @@ const UI = {
 };
 
 const SCENE_STEPS = ['s1', 's2', 's3a', 's3b', 's4', 's5', 's6'];
-const STEPS = ['intro', 'role'].concat(SCENE_STEPS, ['finale']);
+const STEPS = ['intro', 'role'].concat(SCENE_STEPS, ['recap', 'write']);
 const params = new URLSearchParams(location.search);
 const PREVIEW = params.get('preview') === '1';
 
@@ -140,7 +140,8 @@ function textareaField(value, onInput, labelText, rows) {
 function barIndex(step) {
   if (step === 'intro') return 0;
   if (step === 'role') return 1;
-  if (step === 'finale') return 8;
+  if (step === 'recap') return 8;
+  if (step === 'write') return 9;
   if (step === 's3a' || step === 's3b') return 4;
   return 1 + Number(step.slice(1));
 }
@@ -176,7 +177,7 @@ function navRow(opts) {
 }
 function prevHandler() { return function () { state.returnToFinale = false; go(stepNeighbor(-1)); }; }
 function afterScene() {
-  if (state.returnToFinale) { state.returnToFinale = false; go('finale'); return; }
+  if (state.returnToFinale) { state.returnToFinale = false; go('recap'); return; }
   go(stepNeighbor(1));
 }
 
@@ -396,8 +397,19 @@ async function submitRecord(btn) {
   refreshFinale();
 }
 
-function renderFinale(root) {
-  const f = state.finale;
+/* ───────── 화면: 돌아보기 ───────── */
+function typeResult() {
+  const counts = { act: 0, mid: 0, wait: 0, no: 0 };
+  SCENES.forEach(function (s) {
+    const a = state.answers[s.id];
+    const o = a ? s.options.filter(function (x) { return x.id === a.opt; })[0] : null;
+    if (o && o.tag) counts[o.tag] += 1;
+  });
+  const order = Object.keys(counts).sort(function (x, y) { return counts[y] - counts[x]; });
+  return { key: counts[order[0]] === counts[order[1]] ? 'mixed' : order[0], counts: counts };
+}
+
+function renderRecap(root) {
   const role = roleObj();
   root.appendChild(h('section', { class: 'card' }, [
     h('h1', { text: UI.recapTitle }),
@@ -424,7 +436,24 @@ function renderFinale(root) {
     root.appendChild(h('section', { class: 'card' }, h('div', { class: 'recap' }, kids)));
   });
 
-  /* 마무리 글: 기본 선택 없음, 예시·틀 없음 */
+  const tr = typeResult(), T = TYPES[tr.key];
+  const countLine = Object.keys(TAG_LABEL).map(function (k) { return TAG_LABEL[k] + ' ' + tr.counts[k]; }).join(' · ');
+  root.appendChild(h('section', { class: 'card' }, [
+    h('h2', { text: TYPE_TEXT.title }),
+    h('p', { class: 'type-name', text: T.name }),
+    h('p', { text: T.desc }),
+    h('p', { class: 'muted', text: countLine }),
+    h('p', { class: 'muted', text: TYPE_TEXT.note })
+  ]));
+
+  root.appendChild(navRow({ prev: prevHandler(), nextLabel: UI.toWrite, next: function () { go('write'); } }));
+}
+
+/* ───────── 화면: 글쓰기 ───────── */
+function renderWrite(root) {
+  const f = state.finale;
+
+  /* 기본 선택 없음. 일기 안내는 쓸 내용의 방향만 알려 주고 예시 문장은 주지 않는다 */
   const fs1 = h('fieldset', { class: 'choices' }, [h('legend', { text: FINALE.step1 })]);
   CLAUSES.filter(function (c) { return state.clauses.indexOf(c.id) >= 0; }).forEach(function (c) {
     fs1.appendChild(choiceEl('radio', 'fc', c.id, choiceLabel(c.id, ' ' + c.text), '', f.clause === c.id, function () { f.clause = c.id; storeSet(); refreshFinale(); }));
@@ -439,15 +468,25 @@ function renderFinale(root) {
     fs3.appendChild(choiceEl('radio', 'fv', v, h('span', { text: v }), '', f.verdict === v, function () { f.verdict = v; storeSet(); refreshFinale(); }));
   });
   const ta = textareaField(f.reason, function (v) { f.reason = v; storeSet(); refreshFinale(); }, FINALE.step4, 7);
-  const diaryCtx = h('p', { class: 'role-tag', id: 'diaryCtx' });
+  const diaryCtx = h('div', { class: 'situation', id: 'diaryCtx', hidden: true });
 
   const copyBtn = h('button', { type: 'button', class: 'btn btn-primary', id: 'copyBtn', onclick: function () { if (finaleComplete()) copyText(buildCopyText()); } }, UI.copy);
   const subBtn = h('button', { type: 'button', class: 'btn btn-outline', id: 'subBtn', onclick: function () { if (finaleComplete()) submitRecord(subBtn); } }, state.submitted ? UI.submitAgain : UI.submit);
+
   root.appendChild(h('section', { class: 'card' }, [
-    h('h2', { text: UI.writeTitle }),
-    fs1, fs2, fs3,
+    h('h1', { text: UI.writeTitle }),
+    h('p', { class: 'muted', text: UI.writeLead }),
+    fs1, fs2, fs3
+  ]));
+  root.appendChild(h('section', { class: 'card' }, [
+    h('h2', { text: UI.diaryTitle }),
     h('p', { class: 'muted', text: FINALE.diaryNotice }),
-    h('div', { class: 'field' }, [h('p', { class: 'field-label', text: FINALE.step4 }), diaryCtx, ta]),
+    diaryCtx,
+    h('div', { class: 'field' }, [
+      h('p', { class: 'guide-title', text: FINALE.diaryGuideTitle }),
+      h('ul', { class: 'guide' }, FINALE.diaryGuide.map(function (t) { return h('li', { text: t }); }))
+    ]),
+    h('div', { class: 'field' }, [h('p', { class: 'field-label', text: FINALE.step4 }), ta]),
     hintBox(FINALE.hint),
     h('p', { class: 'muted', id: 'finaleNote', text: UI.needAllFinale }),
     h('div', { class: 'btn-row' }, [copyBtn, subBtn])
@@ -463,11 +502,19 @@ function refreshFinale() {
   const c = document.getElementById('copyBtn'), s = document.getElementById('subBtn'), n = document.getElementById('finaleNote');
   const dc = document.getElementById('diaryCtx');
   if (dc) {
-    const sc = state.finale.scene ? sceneById(Number(state.finale.scene)) : null;
-    const r = roleObj();
+    const f = state.finale, r = roleObj();
+    const sc = f.scene ? sceneById(Number(f.scene)) : null;
     const a = sc ? state.answers[sc.id] : null;
-    dc.hidden = !sc;
-    dc.textContent = sc ? '일기 날짜 ' + sc.date + ' · ' + sc.title + ' · ' + UI.roleLabel + ' ' + (r ? r.name : '') + (a && a.opt ? ' · ' + UI.chosen + ' ' + a.opt : '') : '';
+    const parts = [];
+    if (f.clause) parts.push('고른 조항 ' + f.clause);
+    if (f.verdict) parts.push('내 판단 ' + f.verdict);
+    dc.textContent = '';
+    if (sc) {
+      dc.appendChild(h('p', { class: 'role-tag', text: '일기 날짜 ' + sc.date + ' · 장면 ' + sc.id + ' · ' + UI.roleLabel + ' ' + (r ? r.name : '') }));
+      if (a && a.opt) dc.appendChild(h('p', { text: '그날 내 선택 ' + a.opt + '. ' + optText(sc, a.opt) }));
+    }
+    if (parts.length) dc.appendChild(h('p', { text: parts.join(' · ') }));
+    dc.hidden = !dc.childNodes.length;
   }
   if (c) c.disabled = !ok;
   if (s && s.textContent !== UI.submitting) s.disabled = !ok;
@@ -511,7 +558,8 @@ function render() {
   else if (st === 'role') renderRole(root);
   else if (st === 's3a') renderClauses(root);
   else if (st === 's3b') renderScene(root, sceneById(3), true);
-  else if (st === 'finale') renderFinale(root);
+  else if (st === 'recap') renderRecap(root);
+  else if (st === 'write') renderWrite(root);
   else renderScene(root, sceneById(Number(st.slice(1))), false);
   if (window.Glossary) Glossary.refresh();
 }
@@ -527,6 +575,7 @@ function init() {
   const qSid = (params.get('sid') || '').replace(/\D/g, '').slice(0, 5);
   const qName = (params.get('name') || '').trim();
   const saved = storeGet();
+  if (saved && saved.step === 'finale') saved.step = 'recap'; /* 화면을 둘로 나누기 전에 저장된 진행분 */
   if (saved && saved.step && STEPS.indexOf(saved.step) >= 0 && (!qSid || qSid === saved.sid)) state = Object.assign(freshState('', ''), saved);
   if (qSid && !state.sid) state.sid = qSid;
   if (qName && !state.name) state.name = qName;
