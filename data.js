@@ -23,7 +23,7 @@ const CLAUSES = [
 const SCENES = [
   {
     id: 1, date: '1789.6', title: '테니스코트의 선언', reasonRequired: false,
-    image: { src: '', alt: '테니스코트의 선언 장면' },
+    image: { src: 'assets/scenes/scene-1.webp', alt: '테니스코트의 선언 장면' },
     common: '삼부회에서 투표 방식을 두고 부딪혔어요. 평민 대표들은 머릿수대로 투표하자고 했지만 성직자·귀족 대표가 받아들이지 않았어요. 그러자 평민 대표들은 따로 의회를 만들고, 새 헌법이 만들어질 때까지 해산하지 않겠다고 선언했어요.',
     situation: {
       rich:   '재산은 모았어도 신분은 평민이라 세금을 내는 쪽이에요. 평민 대표들이 의회를 따로 세웠다는 소식을 들었어요.',
@@ -39,7 +39,7 @@ const SCENES = [
   },
   {
     id: 2, date: '1789.7', title: '바스티유 감옥 습격', reasonRequired: true,
-    image: { src: '', alt: '바스티유 감옥 습격 장면' },
+    image: { src: 'assets/scenes/scene-2.webp', alt: '바스티유 감옥 습격 장면' },
     common: '왕이 평민 대표들의 의회를 무력으로 진압하려 했어요. 파리 가까이에 왕의 군대가 모여 있었어요. 분노한 파리 시민들이 바스티유 감옥을 습격했고, 이 영향으로 전국에서 농민들이 봉기해 귀족을 공격하고 땅을 차지했어요.',
     situation: {
       rich:   '우리 편 의회가 무력으로 눌릴 수도 있어요. 시내가 술렁이고, 재산이 있는 사람으로서 불안이 커요.',
@@ -55,7 +55,7 @@ const SCENES = [
   },
   {
     id: 3, date: '1789.8', title: '인권 선언과 봉건제 폐지', reasonRequired: true,
-    image: { src: '', alt: '인간과 시민의 권리 선언 장면' },
+    image: { src: 'assets/scenes/scene-3.webp', alt: '인간과 시민의 권리 선언 장면' },
     common: '의회는 농민을 안정시키려고 봉건제를 폐지하고, 인간과 시민의 권리 선언(인권 선언)을 발표했어요.',
     clausePrompt: '아래 조항 중 내 역할에게 가장 중요해 보이는 조항 2개를 골라요.',
     clauseReasonLabel: '그 조항을 고른 까닭을 한 문장으로 써 봐요.',
@@ -75,7 +75,7 @@ const SCENES = [
   },
   {
     id: 4, date: '1792.4', title: '오스트리아·프로이센에 선전 포고', reasonRequired: false,
-    image: { src: '', alt: '선전 포고와 의용군 장면' },
+    image: { src: 'assets/scenes/scene-4.webp', alt: '선전 포고와 의용군 장면' },
     common: '혁명이 퍼질까 걱정한 오스트리아와 프로이센이 프랑스를 위협했어요. 의회는 선전 포고를 하고 혁명전쟁에 들어갔어요. 마르세유의 의용군이 부른 노래는 훗날 프랑스 국가(라 마르세예즈)가 됐어요.',
     situation: {
       rich:   '전쟁이 나면 장사에 영향이 있을 거예요. 한편 혁명으로 달라진 것을 외국이 되돌릴까 걱정돼요.',
@@ -91,7 +91,7 @@ const SCENES = [
   },
   {
     id: 5, date: '1793.1', title: '공화정의 성립과 루이 16세 처형', reasonRequired: false,
-    image: { src: '', alt: '루이 16세 처형 장면' },
+    image: { src: 'assets/scenes/scene-5.webp', alt: '루이 16세 처형 장면' },
     common: '전쟁이 프랑스에 불리해지자 위기감을 느낀 파리 민중과 봉기한 의용군이 왕궁을 습격했어요. 왕정이 폐지되고 공화정이 선포됐고, 루이 16세는 반역죄로 처형됐어요. 이후 공화정을 이끈 급진파는 혁명에 반대하는 사람들을 탄압하는 공포 정치를 시행했어요.',
     situation: {
       rich:   '왕이 처형되고 공화정이 됐어요. 어느 쪽 사람으로 보일지 마음이 무거워요.',
@@ -107,7 +107,7 @@ const SCENES = [
   },
   {
     id: 6, date: '1799.11', title: '나폴레옹의 쿠데타', reasonRequired: true,
-    image: { src: '', alt: '나폴레옹의 쿠데타 장면' },
+    image: { src: 'assets/scenes/scene-6.webp', alt: '나폴레옹의 쿠데타 장면' },
     common: '공포 정치가 이어지자 사람들의 불만이 커졌어요. 급진파가 탄핵되고 공포 정치는 중단됐지만 혼란은 계속됐어요. 이때 혁명전쟁에서 활약하던 나폴레옹이 쿠데타로 정권을 잡고 새 정부를 세웠어요. 프랑스 혁명은 사실상 끝났어요.',
     situation: {
       rich:   '혼란이 길어져 장사도 마음도 불안해요.',
