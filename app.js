@@ -527,7 +527,7 @@ function init() {
   }
   if (state.step !== 'intro' && !/^\d{5}$/.test(state.sid)) state.step = 'intro';
   if (state.step !== 'intro') startGuard();
-  Glossary.start({ terms: GLOSSARY, skip: ['.topbar', '.recap .a', '.modal'] });
+  Glossary.start({ terms: GLOSSARY, unique: true, skip: ['.topbar', '.recap .a', '.modal'] });
   render();
 }
 init();
