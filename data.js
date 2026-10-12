@@ -133,6 +133,17 @@ const COMMON_TEXT = {
   needReason: '이유를 한 문장 적어 주세요'
 };
 
+/* 일기 쓰기 화면 문구 — 예전 마무리 글의 일기 문구에서 조항·판단 이야기만 뺐다 */
+const DIARY = {
+  pickScene: '일기로 쓸 장면을 하나 골라요.',
+  notice: '일기는 상상으로 쓰는 글이에요. 그 장면이 일어난 날까지의 일만 알고 있다고 생각하고 써요.',
+  label: '그날 내 역할이 되어 일기를 3~4문장으로 써 봐요.',
+  starterToggle: '막막하면 문장 시작 넣기',
+  starterNote: '누르면 일기 칸에 문장의 앞부분이 들어가요. 뒤는 내 말로 이어서 써요. 순서는 바꿔도 돼요.',
+  starterLabels: ['일기 시작', '내 선택'],
+  needScene: '위에서 장면을 먼저 골라 주세요'
+};
+
 const TAG_LABEL = { act: '앞장서기', mid: '조율하기', wait: '지켜보기', no: '반대하기' };
 
 const TYPES = {
