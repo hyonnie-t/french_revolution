@@ -3,11 +3,12 @@
 const CONFIG = {
   SHEET_WEBAPP_URL: 'https://script.google.com/macros/s/AKfycbyXSjCfWY_HiZFqW_OBR-FQDoIfF1z_STqyKWUI31MacHeY3u7hbirFSFDvW-5yuUHaJQ/exec',
   GAME_NAME: '프랑스혁명_타임라인', // 임시값 — 포털 차시 id가 정해지면 교체(핸드오프 10-1)
-  STORE_KEY: 'frrev26:state'
+  STORE_KEY: 'frrev26:state',
+  PADLET_URL: '' // 수업 패들렛 주소. 비워 두면 버튼이 숨는다. 포털에서 ?padlet=주소 로 넘겨도 된다(padlet.com만 허용)
 };
 
 const UI = {
-  stepNames: ['시작 질문', '역할', '장면 1', '장면 2', '장면 3', '장면 4', '장면 5', '장면 6', '돌아보기', '글쓰기'],
+  stepNames: ['시작 질문', '역할', '장면 1', '장면 2', '장면 3', '장면 4', '장면 5', '장면 6', '돌아보기'],
   introTitle: '프랑스 혁명 타임라인',
   idTitle: '누구의 기록인지 알려 줘요',
   sidLabel: '학번 (5자리)',
@@ -25,25 +26,27 @@ const UI = {
   clauseTitle: '인권 선언 조항',
   stepClause: '장면 3-1',
   stepChoice: '장면 3-2',
-  start: '시작하기', next: '다음', prev: '이전', toFinale: '돌아보기로', toWrite: '글쓰기로',
+  start: '시작하기', next: '다음', prev: '이전', toFinale: '돌아보기로',
   recapTitle: '내가 따라온 혁명',
   firstThought: '처음 생각',
   rereadScene: '그 장면 다시 읽기',
   chosen: '내 선택',
   reasonWord: '이유',
   clauseRecap: '고른 조항',
-  writeTitle: '마무리 글', writeLead: '먼저 판단을 고르고, 그 판단으로 일기를 써요.', diaryTitle: '일기 쓰기',
+  legend: '선택 표시',
+  timelineTitle: '혁명의 흐름',
   copy: '내 글 복사하기', copied: '복사했어요', copyFail: '복사하지 못했어요. 글을 직접 선택해서 복사해 주세요',
+  padlet: '복사하고 패들렛 열기', padletCopied: '복사했어요. 패들렛에 붙여넣어 주세요',
+  outTitle: '패들렛에 올리기', outLead: '복사한 글을 패들렛에 붙여넣어 올려요.',
   submit: '기록하기', submitAgain: '다시 기록하기', submitting: '기록하는 중', submitted: '기록했어요',
   submitFail: '기록하지 못했어요. 다시 시도해 주세요', submitPreview: '미리보기에서는 저장하지 않아요',
-  needAllFinale: '마무리 글을 모두 채우면 복사하고 기록할 수 있어요',
   restart: '처음부터 다시하기',
   restartTitle: '처음부터 다시 할까요?', restartBody: '쓴 내용이 모두 지워져요.', cancel: '취소', erase: '지우기',
   roleLabel: '내 역할'
 };
 
 const SCENE_STEPS = ['s1', 's2', 's3a', 's3b', 's4', 's5', 's6'];
-const STEPS = ['intro', 'role'].concat(SCENE_STEPS, ['recap', 'write']);
+const STEPS = ['intro', 'role'].concat(SCENE_STEPS, ['recap']);
 const params = new URLSearchParams(location.search);
 const PREVIEW = params.get('preview') === '1';
 
@@ -57,7 +60,7 @@ function storeDel() { try { localStorage.removeItem(CONFIG.STORE_KEY); } catch (
 
 function freshState(sid, name) {
   return { sid: sid, name: name, introA: '', introB: '', role: '', step: 'intro', answers: {}, clauses: [], clauseReason: '',
-    finale: { clause: '', scene: '', verdict: '', reason: '' }, submitted: false };
+    submitted: false };
 }
 
 /* ───────── DOM 도우미 ───────── */
@@ -150,7 +153,6 @@ function barIndex(step) {
   if (step === 'intro') return 0;
   if (step === 'role') return 1;
   if (step === 'recap') return 8;
-  if (step === 'write') return 9;
   if (step === 's3a' || step === 's3b') return 4;
   return 1 + Number(step.slice(1));
 }
@@ -321,7 +323,6 @@ function renderClauses(root) {
         state.clauses.push(c.id);
       } else {
         state.clauses = state.clauses.filter(function (x) { return x !== c.id; });
-        if (state.finale.clause === c.id) state.finale.clause = '';
       }
       storeSet(); clearError(err);
     }));
@@ -346,9 +347,10 @@ function renderClauses(root) {
 }
 
 /* ───────── 화면: 마무리 ───────── */
-function finaleComplete() {
-  const f = state.finale;
-  return !!(f.clause && f.scene && f.verdict && f.reason.trim());
+function typeLine() {
+  const tr = typeResult();
+  const counts = Object.keys(TAG_LABEL).map(function (k) { return TAG_LABEL[k] + ' ' + tr.counts[k]; }).join(' · ');
+  return '[내 유형] ' + TYPES[tr.key].name + ' (' + counts + ')';
 }
 function buildCopyText() {
   const role = roleObj();
@@ -365,36 +367,34 @@ function buildCopyText() {
   });
   const cl = CLAUSES.filter(function (c) { return state.clauses.indexOf(c.id) >= 0; }).map(function (c) { return c.id; });
   lines.push('[고른 조항] ' + cl.join(', ') + ' / 이유: ' + oneLine(state.clauseReason));
-  const f = state.finale;
-  lines.push('[마무리] 조항 ' + f.clause + ' · 장면 ' + f.scene + ' · 판단: ' + f.verdict + ' / 일기: ' + oneLine(f.reason));
+  lines.push(typeLine());
   return lines.join('\n');
 }
-function copyText(text) {
+function copyText(text, okMsg) {
   const fallback = function () {
     const ta = h('textarea', { 'aria-hidden': 'true', style: 'position:fixed;left:-9999px;top:0' });
     ta.value = text; document.body.appendChild(ta); ta.select();
     let ok = false;
     try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
     document.body.removeChild(ta);
-    toast(ok ? UI.copied : UI.copyFail);
+    toast(ok ? (okMsg || UI.copied) : UI.copyFail);
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(function () { toast(UI.copied); }, fallback);
+    navigator.clipboard.writeText(text).then(function () { toast(okMsg || UI.copied); }, fallback);
   } else fallback();
 }
 
 async function submitRecord(btn) {
   if (PREVIEW) { toast(UI.submitPreview); return; }
-  const f = state.finale, role = roleObj();
+  const role = roleObj(), tr = typeResult();
   const cl = state.clauses.slice().sort(function (a, b) { return parseInt(a.replace(/\D/g, ''), 10) - parseInt(b.replace(/\D/g, ''), 10); });
-  const finaleLine = '[마무리] 조항 ' + f.clause + ' · 장면 ' + f.scene + ' · 판단: ' + f.verdict + ' / 일기: ' + oneLine(f.reason);
   const body = {
     studentId: state.sid, studentName: state.name, gameName: CONFIG.GAME_NAME,
-    choiceSummary: (role ? role.name : '') + ' / 조항 ' + cl.join(', ') + ' / ' + f.clause + '·장면 ' + f.scene + '·' + f.verdict,
+    choiceSummary: (role ? role.name : '') + ' / 조항 ' + cl.join(', ') + ' / ' + TYPES[tr.key].name,
     diffSummary: '',
-    reflection: finaleLine,
+    reflection: typeLine(),
     // 주의: 백엔드 칭호 판정이 choicesJson.role 을 읽으므로 역할 키 이름은 persona 로 쓴다
-    choicesJson: JSON.stringify({ persona: state.role, intro: { commoner: state.introA, noble: state.introB }, scenes: state.answers, clauses: cl, clauseReason: state.clauseReason, finale: f })
+    choicesJson: JSON.stringify({ persona: state.role, intro: { commoner: state.introA, noble: state.introB }, scenes: state.answers, clauses: cl, clauseReason: state.clauseReason, type: tr })
   };
   Object.assign(body, window.FocusGuard ? FocusGuard.payload() : {});
   btn.disabled = true; btn.textContent = UI.submitting;
@@ -407,8 +407,8 @@ async function submitRecord(btn) {
   } catch (e) {
     toast(e && e.message ? e.message : UI.submitFail);
   }
+  btn.disabled = false;
   btn.textContent = state.submitted ? UI.submitAgain : UI.submit;
-  refreshFinale();
 }
 
 /* ───────── 화면: 돌아보기 ───────── */
@@ -423,6 +423,83 @@ function typeResult() {
   return { key: counts[order[0]] === counts[order[1]] ? 'mixed' : order[0], counts: counts };
 }
 
+const TAG_ICON = {
+  act:  'M3 8h9M8.5 4l4 4-4 4',
+  mid:  'M3 5.5h10M3 10.5h10',
+  wait: 'M8 3.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9zM8 5.8V8l1.6 1.2',
+  no:   'M4 4l8 8M12 4l-8 8'
+};
+function tagChip(tag) {
+  return h('span', { class: 'tag-chip', 'data-tag': tag }, [svg(TAG_ICON[tag]), TAG_LABEL[tag]]);
+}
+function sceneTag(scene) {
+  const a = state.answers[scene.id];
+  const o = a ? scene.options.filter(function (x) { return x.id === a.opt; })[0] : null;
+  return o && o.tag ? o.tag : '';
+}
+
+/* 연표: 날짜 · 세로줄 · 내 선택 카드. 선택 성격(tag)은 아이콘+글자+모양으로 함께 표시한다 */
+function timelineEl() {
+  const list = h('ol', { class: 'timeline' });
+  SCENES.forEach(function (s) {
+    const a = state.answers[s.id] || { opt: '', reason: '' };
+    const tag = sceneTag(s);
+    const p = s.date.split('.');
+    const body = [
+      h('div', { class: 'tl-head' }, [h('h3', { text: '장면 ' + s.id + ' · ' + s.title }), tag ? tagChip(tag) : null]),
+      h('p', { class: 'q', text: UI.chosen }),
+      h('p', { class: 'a', text: a.opt ? a.opt + '. ' + optText(s, a.opt) : '' })
+    ];
+    if (oneLine(a.reason)) body.push(h('p', { class: 'q', text: UI.reasonWord }), h('p', { class: 'a', text: a.reason }));
+    if (s.id === 3) {
+      const cl = CLAUSES.filter(function (c) { return state.clauses.indexOf(c.id) >= 0; });
+      body.push(h('p', { class: 'q', text: UI.clauseRecap }), h('p', { class: 'a', text: cl.map(function (c) { return c.id + ' ' + c.text; }).join('\n') }));
+      body.push(h('p', { class: 'q', text: UI.reasonWord }), h('p', { class: 'a', text: state.clauseReason }));
+    }
+    list.appendChild(h('li', { class: 'tl-item', 'data-tag': tag }, [
+      h('div', { class: 'tl-date' }, [h('span', { class: 'tl-year', text: p[0] }), h('span', { class: 'tl-month', text: p[1] + '월' })]),
+      h('div', { class: 'tl-rail' }, h('span', { class: 'tl-node' }, tag ? svg(TAG_ICON[tag]) : null)),
+      h('div', { class: 'tl-card' }, body)
+    ]));
+  });
+  return list;
+}
+
+/* 거미줄(레이더) 그래프: 네 가지 선택 성격을 장면 수(최대 6)로 그린다. 마주 보는 축은 앞장서기↔지켜보기, 조율하기↔반대하기 */
+const RADAR_AXES = [
+  { tag: 'act',  dx: -1, dy: -1 },
+  { tag: 'mid',  dx: 1,  dy: -1 },
+  { tag: 'wait', dx: 1,  dy: 1 },
+  { tag: 'no',   dx: -1, dy: 1 }
+];
+function radarEl(counts) {
+  const NS = 'http://www.w3.org/2000/svg', C = 50, R = 36, MAX = SCENES.length, K = Math.SQRT1_2;
+  const pt = function (ax, v) { const r = R * v / MAX; return [C + ax.dx * K * r, C + ax.dy * K * r]; };
+  const poly = function (v) { return RADAR_AXES.map(function (ax) { return pt(ax, v).join(','); }).join(' '); };
+  const mk = function (tag, attrs) { const e = document.createElementNS(NS, tag); Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); }); return e; };
+  const sv = mk('svg', { viewBox: '0 0 100 100', 'aria-hidden': 'true', class: 'radar-svg' });
+  [2, 4, 6].forEach(function (v) { sv.appendChild(mk('polygon', { points: poly(v), class: 'radar-ring' })); });
+  RADAR_AXES.forEach(function (ax) { const e = pt(ax, MAX); sv.appendChild(mk('line', { x1: C, y1: C, x2: e[0], y2: e[1], class: 'radar-axis' })); });
+  sv.appendChild(mk('polygon', { points: RADAR_AXES.map(function (ax) { return pt(ax, counts[ax.tag]).join(','); }).join(' '), class: 'radar-area' }));
+  RADAR_AXES.forEach(function (ax) { const q = pt(ax, counts[ax.tag]); sv.appendChild(mk('circle', { cx: q[0], cy: q[1], r: 1.6, class: 'radar-dot' })); });
+
+  const label = RADAR_AXES.map(function (ax) { return TAG_LABEL[ax.tag] + ' ' + counts[ax.tag] + '번'; }).join(', ');
+  const wrap = h('div', { class: 'radar', role: 'img', 'aria-label': TYPE_TEXT.title + ' 그래프. ' + label }, sv);
+  RADAR_AXES.forEach(function (ax) {
+    const e = pt(ax, MAX);
+    wrap.appendChild(h('span', { class: 'radar-label' + (ax.dy < 0 ? ' up' : ' down'), 'aria-hidden': 'true',
+      style: 'left:' + e[0] + '%;top:' + e[1] + '%' }, [h('b', { text: TAG_LABEL[ax.tag] }), h('span', { text: counts[ax.tag] + '번' })]));
+  });
+  return wrap;
+}
+
+function openPadlet() {
+  let url = CONFIG.PADLET_URL;
+  const q = params.get('padlet');
+  if (q) { try { const u = new URL(q); if (u.protocol === 'https:' && /(^|\.)padlet\.com$/.test(u.hostname)) url = u.href; } catch (e) { /* 무시 */ } }
+  return url;
+}
+
 function renderRecap(root) {
   const role = roleObj();
   root.appendChild(h('section', { class: 'card' }, [
@@ -430,167 +507,37 @@ function renderRecap(root) {
     h('p', { class: 'role-tag', text: UI.roleLabel + ' · ' + (role ? role.name : '') }),
     (oneLine(state.introA) || oneLine(state.introB)) ? h('div', { class: 'recap' }, [h('p', { class: 'q', text: UI.firstThought }),
       oneLine(state.introA) ? h('p', { class: 'q', text: UI.introCommoner }) : null, oneLine(state.introA) ? h('p', { class: 'a', text: state.introA }) : null,
-      oneLine(state.introB) ? h('p', { class: 'q', text: UI.introNoble }) : null, oneLine(state.introB) ? h('p', { class: 'a', text: state.introB }) : null]) : null
+      oneLine(state.introB) ? h('p', { class: 'q', text: UI.introNoble }) : null, oneLine(state.introB) ? h('p', { class: 'a', text: state.introB }) : null]) : null,
+    h('div', { class: 'legend' }, [h('p', { class: 'q', text: UI.legend })].concat(Object.keys(TAG_LABEL).map(tagChip)))
   ]));
 
-  SCENES.forEach(function (s) {
-    const a = state.answers[s.id] || { opt: '', reason: '' };
-    const kids = [
-      h('div', { class: 'card-title' }, [h('span', { class: 'date-chip', text: s.date }), h('h3', { text: '장면 ' + s.id + ' · ' + s.title })]),
-      h('p', { class: 'q', text: UI.chosen }),
-      h('p', { class: 'a', text: a.opt ? a.opt + '. ' + optText(s, a.opt) : '' })
-    ];
-    if (oneLine(a.reason)) kids.push(h('p', { class: 'q', text: UI.reasonWord }), h('p', { class: 'a', text: a.reason }));
-    if (s.id === 3) {
-      const cl = CLAUSES.filter(function (c) { return state.clauses.indexOf(c.id) >= 0; });
-      kids.push(h('p', { class: 'q', text: UI.clauseRecap }), h('p', { class: 'a', text: cl.map(function (c) { return c.id + ' ' + c.text; }).join('\n') }));
-      kids.push(h('p', { class: 'q', text: UI.reasonWord }), h('p', { class: 'a', text: state.clauseReason }));
-    }
-    root.appendChild(h('section', { class: 'card' }, h('div', { class: 'recap' }, kids)));
-  });
+  root.appendChild(timelineEl());
 
   const tr = typeResult(), T = TYPES[tr.key];
   const countLine = Object.keys(TAG_LABEL).map(function (k) { return TAG_LABEL[k] + ' ' + tr.counts[k]; }).join(' · ');
   root.appendChild(h('section', { class: 'card' }, [
     h('h2', { text: TYPE_TEXT.title }),
+    radarEl(tr.counts),
     h('p', { class: 'type-name', text: T.name }),
     h('p', { text: T.desc }),
     h('p', { class: 'muted', text: countLine }),
     h('p', { class: 'muted', text: TYPE_TEXT.note })
   ]));
 
-  root.appendChild(navRow({ prev: prevHandler(), nextLabel: UI.toWrite, next: function () { go('write'); } }));
-}
-
-/* ───────── 화면: 글쓰기 ───────── */
-/* 일기 문장 시작: 앞부분만 넣는다. 결론은 넣지 않고, 판단은 학생이 위에서 고른 것만 쓴다 */
-function insertAtCursor(ta, text) {
-  const v = ta.value;
-  const pos = typeof ta.selectionStart === 'number' ? ta.selectionStart : v.length;
-  const end = typeof ta.selectionEnd === 'number' ? ta.selectionEnd : pos;
-  const before = v.slice(0, pos);
-  const lead = before && !/\s$/.test(before) ? ' ' : '';
-  ta.value = before + lead + text + v.slice(end);
-  const caret = (before + lead + text).length;
-  ta.focus();
-  try { ta.setSelectionRange(caret, caret); } catch (e) { /* 무시 */ }
-  ta.dispatchEvent(new Event('input', { bubbles: true }));
-}
-function addStarter(i, ta) {
-  const f = state.finale;
-  const sc = f.scene ? sceneById(Number(f.scene)) : null;
-  let text = '';
-  if (i === 0) {
-    if (!sc) { toast(FINALE.needScene); return; }
-    const p = sc.date.split('.');
-    text = p[0] + '년 ' + p[1] + '월. 오늘은 ';
-  } else if (i === 1) {
-    text = '나는 이렇게 하기로 했다. 그렇게 한 이유는 ';
-  } else if (i === 2) {
-    if (!f.clause) { toast(FINALE.needClause); return; }
-    text = f.clause + '에 적힌 말을 떠올리면, 오늘 내 하루는 ';
-  } else {
-    if (!f.verdict) { toast(FINALE.needVerdict); return; }
-    text = '그래서 나는 이 조항이 오늘 ' + FINALE.verdictForm[f.verdict] + '. 왜냐하면 ';
-  }
-  insertAtCursor(ta, text);
-}
-
-function renderWrite(root) {
-  const f = state.finale;
-
-  /* 기본 선택 없음. 일기 안내는 쓸 내용의 방향만 알려 주고 예시 문장은 주지 않는다 */
-  const chosenClauses = CLAUSES.filter(function (c) { return state.clauses.indexOf(c.id) >= 0; });
-  if (chosenClauses.length === 1) { f.clause = chosenClauses[0].id; storeSet(); }
-  const fs1 = chosenClauses.length === 1
-    ? h('div', { class: 'recap' }, [h('p', { class: 'q', text: FINALE.step1one }), h('p', { class: 'a', text: chosenClauses[0].id + ' ' + chosenClauses[0].text })])
-    : h('fieldset', { class: 'choices' }, [h('legend', { text: FINALE.step1 })]);
-  if (chosenClauses.length !== 1) chosenClauses.forEach(function (c) {
-    fs1.appendChild(choiceEl('radio', 'fc', c.id, choiceLabel(c.id, ' ' + c.text), '', f.clause === c.id, function () { f.clause = c.id; storeSet(); refreshFinale(); }));
-  });
-  const fs2 = h('fieldset', { class: 'choices' }, [h('legend', { text: FINALE.step2 })]);
-  [4, 5, 6].forEach(function (n) {
-    const s = sceneById(n);
-    fs2.appendChild(choiceEl('radio', 'fs', String(n), choiceLabel('장면 ' + n + '.', ' ' + s.title), '', f.scene === String(n), function () { f.scene = String(n); storeSet(); refreshFinale(); }));
-  });
-  const fs3 = h('fieldset', { class: 'choices inline' }, [h('legend', { text: FINALE.step3 })]);
-  FINALE.verdicts.forEach(function (v) {
-    fs3.appendChild(choiceEl('radio', 'fv', v, h('span', { text: v }), '', f.verdict === v, function () { f.verdict = v; storeSet(); refreshFinale(); }));
-  });
-  const ta = textareaField(f.reason, function (v) { f.reason = v; storeSet(); refreshFinale(); }, FINALE.step4, 7);
-  const diaryCtx = h('div', { class: 'situation', id: 'diaryCtx', hidden: true });
-  const starter = h('details', {}, [
-    h('summary', {}, [svg(ICON.chev), FINALE.starterToggle]),
-    h('div', { class: 'details-body' }, [
-      h('p', { class: 'muted', text: FINALE.starterNote }),
-      h('div', { class: 'btn-row' }, FINALE.starterLabels.map(function (label, i) {
-        return h('button', { type: 'button', class: 'btn btn-outline', onclick: function () { addStarter(i, ta); } }, label);
-      }))
-    ])
-  ]);
-
-  const copyBtn = h('button', { type: 'button', class: 'btn btn-primary', id: 'copyBtn', onclick: function () { if (finaleComplete()) copyText(buildCopyText()); } }, UI.copy);
-  const subBtn = h('button', { type: 'button', class: 'btn btn-outline', id: 'subBtn', onclick: function () { if (finaleComplete()) submitRecord(subBtn); } }, state.submitted ? UI.submitAgain : UI.submit);
-
+  const url = openPadlet();
+  const copyBtn = h('button', { type: 'button', class: 'btn btn-primary', onclick: function () { copyText(buildCopyText()); } }, UI.copy);
+  const padBtn = url ? h('a', { class: 'btn btn-outline', href: url, target: '_blank', rel: 'noopener noreferrer',
+    onclick: function () { copyText(buildCopyText(), UI.padletCopied); } }, [UI.padlet, svg('M6 3.5H3.5v9h9V10M9 3.5h3.5V7M12.5 3.5L7.5 8.5')]) : null;
+  const subBtn = h('button', { type: 'button', class: 'btn btn-outline', id: 'subBtn', onclick: function () { submitRecord(subBtn); } }, state.submitted ? UI.submitAgain : UI.submit);
   root.appendChild(h('section', { class: 'card' }, [
-    h('h1', { text: UI.writeTitle }),
-    h('p', { class: 'muted', text: UI.writeLead }),
-    fs1, fs2, fs3
-  ]));
-  root.appendChild(h('section', { class: 'card' }, [
-    h('h2', { text: UI.diaryTitle }),
-    h('p', { class: 'muted', text: FINALE.diaryNotice }),
-    diaryCtx,
-    h('div', { id: 'sceneReread' }),
-    h('div', { class: 'field' }, [
-      h('p', { class: 'guide-title', text: FINALE.diaryGuideTitle }),
-      h('ol', { class: 'guide' }, FINALE.diaryGuide.map(function (t) { return h('li', { text: t }); }))
-    ]),
-    h('div', { class: 'field' }, [h('p', { class: 'field-label', text: FINALE.step4 }), ta]),
-    starter,
-    hintBox(FINALE.hint),
-    h('p', { class: 'muted', id: 'finaleNote', text: UI.needAllFinale }),
-    h('div', { class: 'btn-row' }, [copyBtn, subBtn])
+    h('h2', { text: UI.outTitle }),
+    h('p', { class: 'muted', text: UI.outLead }),
+    h('div', { class: 'btn-row' }, [copyBtn, padBtn, subBtn])
   ]));
   root.appendChild(h('div', { class: 'nav-row' }, [
     h('button', { type: 'button', class: 'btn', onclick: prevHandler() }, UI.prev),
     h('button', { type: 'button', class: 'btn btn-outline', onclick: confirmRestart }, UI.restart)
   ]));
-  refreshFinale();
-}
-function refreshFinale() {
-  const ok = finaleComplete();
-  const c = document.getElementById('copyBtn'), s = document.getElementById('subBtn'), n = document.getElementById('finaleNote');
-  const dc = document.getElementById('diaryCtx');
-  if (dc) {
-    const f = state.finale, r = roleObj();
-    const sc = f.scene ? sceneById(Number(f.scene)) : null;
-    const a = sc ? state.answers[sc.id] : null;
-    const parts = [];
-    if (f.clause) parts.push('고른 조항 ' + f.clause);
-    if (f.verdict) parts.push('내 판단 ' + f.verdict);
-    dc.textContent = '';
-    const box = h('div', { class: 'diary-text' });
-    if (sc) {
-      box.appendChild(h('p', { class: 'role-tag', text: '일기 날짜 ' + sc.date + ' · 장면 ' + sc.id + ' · ' + UI.roleLabel + ' ' + (r ? r.name : '') }));
-      if (a && a.opt) box.appendChild(h('p', { text: '그날 내 선택 ' + a.opt + '. ' + optText(sc, a.opt) }));
-    }
-    if (parts.length) box.appendChild(h('p', { text: parts.join(' · ') }));
-    const pt = portraitEl(r, 'portrait portrait-sm');
-    if (pt) dc.appendChild(pt);
-    dc.appendChild(box);
-    dc.hidden = !box.childNodes.length;
-  }
-  const rr = document.getElementById('sceneReread');
-  if (rr && rr.dataset.scene !== String(state.finale.scene || '')) {
-    rr.dataset.scene = String(state.finale.scene || '');
-    rr.textContent = '';
-    const rs = state.finale.scene ? sceneById(Number(state.finale.scene)) : null;
-    if (rs) rr.appendChild(h('details', {}, [h('summary', {}, [svg(ICON.chev), UI.rereadScene]), h('div', { class: 'details-body' }, h('p', { text: rs.common }))]));
-  }
-  if (c) c.disabled = !ok;
-  if (s && s.textContent !== UI.submitting) s.disabled = !ok;
-  if (n) n.hidden = ok;
 }
 
 /* ───────── 모달: 처음부터 다시하기 ───────── */
@@ -631,7 +578,6 @@ function render() {
   else if (st === 's3a') renderClauses(root);
   else if (st === 's3b') renderScene(root, sceneById(3), true);
   else if (st === 'recap') renderRecap(root);
-  else if (st === 'write') renderWrite(root);
   else renderScene(root, sceneById(Number(st.slice(1))), false);
   if (window.Glossary) Glossary.refresh();
 }
@@ -647,7 +593,7 @@ function init() {
   const qSid = (params.get('sid') || '').replace(/\D/g, '').slice(0, 5);
   const qName = (params.get('name') || '').trim();
   const saved = storeGet();
-  if (saved && saved.step === 'finale') saved.step = 'recap'; /* 화면을 둘로 나누기 전에 저장된 진행분 */
+  if (saved && (saved.step === 'finale' || saved.step === 'write')) saved.step = 'recap'; /* 예전에 저장된 진행분 */
   if (saved && saved.step && STEPS.indexOf(saved.step) >= 0 && (!qSid || qSid === saved.sid)) state = Object.assign(freshState('', ''), saved);
   if (saved && saved.intro && !state.introA && !state.introB) state.introA = saved.intro;
   if (qSid && !state.sid) state.sid = qSid;
