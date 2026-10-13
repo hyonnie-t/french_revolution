@@ -38,8 +38,8 @@ const UI = {
   copy: '내 글 복사하기', copied: '복사했어요', copyFail: '복사하지 못했어요. 글을 직접 선택해서 복사해 주세요',
   padletOpen: '패들렛 열기', padletNoUrl: '복사했어요. 포털의 "내 패들렛 열기"로 가서 붙여넣어 주세요.', padletCopied: '복사했어요. 패들렛에 붙여넣어 주세요',
   outTitle: '패들렛에 올리기', outLead: '복사한 글을 패들렛에 붙여넣어 올려요.',
-  writeTitle: '일기 쓰기', writeLead: '일기로 쓸 장면을 고르고, 그날 내 역할이 되어 써요.',
-  needAllDiary: '장면을 고르고 일기를 쓰면 복사하고 기록할 수 있어요',
+  writeTitle: '일기 쓰기', writeLead: '장면을 고르고, 그날 내 역할이 되어 그날 있었던 일을 일기로 써요.',
+  needAllDiary: '장면을 고르고, 고른 장면마다 일기를 쓰면 복사하고 기록할 수 있어요',
   submit: '기록하기', submitAgain: '다시 기록하기', submitting: '기록하는 중', submitted: '기록했어요',
   submitFail: '기록하지 못했어요. 다시 시도해 주세요', submitPreview: '미리보기에서는 저장하지 않아요',
   restart: '처음부터 다시하기',
@@ -62,7 +62,7 @@ function storeDel() { try { localStorage.removeItem(CONFIG.STORE_KEY); } catch (
 
 function freshState(sid, name) {
   return { sid: sid, name: name, introA: '', introB: '', role: '', step: 'intro', answers: {}, clauses: [], clauseReason: '',
-    diary: { scene: '', text: '' }, order: {}, submitted: false };
+    diary: { scenes: [], texts: {} }, order: {}, submitted: false };
 }
 
 /* ───────── DOM 도우미 ───────── */
@@ -371,11 +371,18 @@ function typeLine() {
   const counts = Object.keys(TAG_LABEL).map(function (k) { return TAG_LABEL[k] + ' ' + tr.counts[k]; }).join(' · ');
   return '[내 유형] ' + TYPES[tr.key].name + ' (' + counts + ')';
 }
-function diaryDone() { const d = state.diary; return !!(d.scene && d.text.trim()); }
-function diaryLine() {
-  const d = state.diary, ds = d.scene ? sceneById(Number(d.scene)) : null;
-  return '[일기] 장면 ' + (ds ? ds.id + ' (' + ds.date + ')' : '') + ' / ' + oneLine(d.text) + '\n' + typeLine();
+function diarySceneIds() { return (state.diary.scenes || []).map(Number).sort(function (x, y) { return x - y; }); }
+function diaryDone() {
+  const ids = diarySceneIds();
+  return ids.length >= 1 && ids.every(function (id) { return String((state.diary.texts || {})[id] || '').trim(); });
 }
+function diaryEntries() {
+  return diarySceneIds().map(function (id) {
+    const sc = sceneById(id);
+    return '[일기] 장면 ' + id + ' (' + sc.date + ') / ' + oneLine(state.diary.texts[id]);
+  });
+}
+function diaryLine() { return diaryEntries().join('\n') + '\n' + typeLine(); }
 function buildCopyText() {
   const role = roleObj();
   const lines = [];
@@ -392,8 +399,7 @@ function buildCopyText() {
   const cl = CLAUSES.filter(function (c) { return state.clauses.indexOf(c.id) >= 0; }).map(function (c) { return c.id; });
   lines.push('[고른 조항] ' + cl.join(', ') + ' / 이유: ' + oneLine(state.clauseReason));
   lines.push(typeLine());
-  const d = state.diary, ds = d.scene ? sceneById(Number(d.scene)) : null;
-  if (ds) lines.push('[일기] 장면 ' + ds.id + ' (' + ds.date + ') / ' + oneLine(d.text));
+  diaryEntries().forEach(function (l) { lines.push(l); });
   return lines.join('\n');
 }
 function copyText(text, okMsg, onOk) {
@@ -567,31 +573,62 @@ function insertAtCursor(ta, text) {
   try { ta.setSelectionRange(caret, caret); } catch (e) { /* 무시 */ }
   ta.dispatchEvent(new Event('input', { bubbles: true }));
 }
-function addStarter(i, ta) {
-  const d = state.diary, sc = d.scene ? sceneById(Number(d.scene)) : null;
-  if (!sc) { toast(DIARY.needScene); return; }
-  const text = i === 0 ? sc.date.split('.')[0] + '년 ' + sc.date.split('.')[1] + '월. 오늘은 ' : '나는 이렇게 하기로 했다. 그렇게 한 이유는 ';
-  insertAtCursor(ta, text);
+function addStarter(i, sceneId, ta) {
+  const sc = sceneById(sceneId), p = sc.date.split('.');
+  insertAtCursor(ta, DIARY.starterTexts[i].replace('{date}', p[0] + '년 ' + p[1] + '월'));
 }
 
-function renderWrite(root) {
-  const d = state.diary;
-  const fs = h('fieldset', { class: 'choices' }, [h('legend', { text: DIARY.pickScene })]);
-  SCENES.forEach(function (s) {
-    fs.appendChild(choiceEl('radio', 'ds', String(s.id), choiceLabel('장면 ' + s.id + '.', ' ' + s.title), s.date, d.scene === String(s.id), function () { d.scene = String(s.id); storeSet(); refreshWrite(); }));
-  });
-  const ta = textareaField(d.text, function (v) { d.text = v; storeSet(); refreshWrite(); }, DIARY.label, 7);
-  const ctx = h('div', { class: 'situation', id: 'diaryCtx', hidden: true });
-  const starter = h('details', {}, [
+/* 장면 하나의 일기 칸: 그날 내 상황과 그림을 곁에 두고, 보고 들은 것을 떠올리며 쓰게 한다 */
+function diaryEntryEl(sc, first) {
+  const r = roleObj(), a = state.answers[sc.id];
+  const ta = textareaField(state.diary.texts[sc.id] || '', function (v) { state.diary.texts[sc.id] = v; storeSet(); refreshWrite(); }, DIARY.label + ' (장면 ' + sc.id + ')', 8);
+  const ctx = [];
+  const pt = portraitEl(r, 'portrait portrait-sm');
+  const info = h('div', { class: 'diary-text' }, [
+    h('p', { class: 'role-tag', text: '일기 날짜 ' + sc.date + ' · 장면 ' + sc.id + ' · ' + UI.roleLabel + ' ' + (r ? r.name : '') }),
+    h('p', { text: DIARY.situationLabel + ' ' + (sc.situation[state.role] || '') }),
+    (a && a.opt) ? h('p', { text: '그날 내 선택 ' + dispLetter(sc, a.opt) + '. ' + optText(sc, a.opt) }) : null
+  ]);
+  if (pt) ctx.push(pt);
+  ctx.push(info);
+  const kids = [h('h2', { text: '장면 ' + sc.id + ' · ' + sc.title }), h('div', { class: 'situation diary-ctx' }, ctx)];
+  if (sc.image && sc.image.src) {
+    const img = h('img', { src: sc.image.src, alt: sc.image.alt, loading: 'lazy' });
+    const fig = h('figure', { class: 'scene-figure' }, img);
+    img.addEventListener('error', function () { fig.hidden = true; });
+    kids.push(fig);
+  }
+  kids.push(h('details', { open: first ? true : null }, [h('summary', {}, [svg(ICON.chev), UI.rereadScene]), h('div', { class: 'details-body' }, h('p', { text: sc.common }))]));
+  kids.push(h('div', { class: 'field' }, [h('p', { class: 'field-label', text: DIARY.label }), ta]));
+  kids.push(h('details', {}, [
     h('summary', {}, [svg(ICON.chev), DIARY.starterToggle]),
     h('div', { class: 'details-body' }, [
       h('p', { class: 'muted', text: DIARY.starterNote }),
       h('div', { class: 'btn-row' }, DIARY.starterLabels.map(function (label, i) {
-        return h('button', { type: 'button', class: 'btn btn-outline', onclick: function () { addStarter(i, ta); } }, label);
+        return h('button', { type: 'button', class: 'btn btn-outline', onclick: function () { addStarter(i, sc.id, ta); } }, label);
       }))
     ])
-  ]);
+  ]));
+  return h('section', { class: 'card', 'data-scene': String(sc.id) }, kids);
+}
 
+function renderWrite(root) {
+  const d = state.diary;
+  const fs = h('fieldset', { class: 'choices' }, [h('legend', { text: DIARY.pickScene }), h('p', { class: 'muted', text: DIARY.pickNote })]);
+  SCENES.forEach(function (s) {
+    fs.appendChild(choiceEl('checkbox', 'ds', String(s.id), choiceLabel('장면 ' + s.id + '.', ' ' + s.title), s.date, d.scenes.indexOf(String(s.id)) >= 0, function (input) {
+      const id = String(s.id);
+      if (input.checked) {
+        if (d.scenes.length >= 2) { input.checked = false; toast(DIARY.max); return; }
+        d.scenes.push(id);
+      } else {
+        d.scenes = d.scenes.filter(function (x) { return x !== id; });
+      }
+      storeSet(); renderEntries(); refreshWrite();
+    }));
+  });
+
+  const entries = h('div', { id: 'diaryEntries', class: 'diary-entries' });
   // v-pad: 복사에 성공한 뒤에야 패들렛 버튼이 나온다(복사 전엔 숨김). 주소가 없으면 포털에서 열도록 안내만 보인다.
   const url = openPadlet();
   const padBox = h('div', { class: 'pad-after', id: 'padAfter', hidden: true });
@@ -611,13 +648,12 @@ function renderWrite(root) {
   ]));
   root.appendChild(h('section', { class: 'card' }, [
     h('p', { class: 'muted', text: DIARY.notice }),
-    ctx,
-    h('div', { id: 'sceneReread' }),
-    h('div', { class: 'field' }, [h('p', { class: 'field-label', text: DIARY.label }), ta]),
-    starter,
-    h('p', { class: 'muted', id: 'diaryNote', text: UI.needAllDiary })
+    h('p', { class: 'guide-title', text: DIARY.guideTitle }),
+    h('ol', { class: 'guide' }, DIARY.guide.map(function (t) { return h('li', { text: t }); }))
   ]));
+  root.appendChild(entries);
   root.appendChild(h('section', { class: 'card' }, [
+    h('p', { class: 'muted', id: 'diaryNote', text: UI.needAllDiary }),
     h('h2', { text: UI.outTitle }),
     h('p', { class: 'muted', text: UI.outLead }),
     h('div', { class: 'btn-row' }, [copyBtn, subBtn]),
@@ -627,7 +663,14 @@ function renderWrite(root) {
     h('button', { type: 'button', class: 'btn', onclick: prevHandler() }, UI.prev),
     h('button', { type: 'button', class: 'btn btn-outline', onclick: confirmRestart }, UI.restart)
   ]));
-  refreshWrite();
+  renderEntries(); refreshWrite();
+}
+/* 고른 장면(연대순)마다 일기 칸을 하나씩. 글은 state에 있으니 다시 그려도 사라지지 않는다 */
+function renderEntries() {
+  const box = document.getElementById('diaryEntries'); if (!box) return;
+  box.textContent = '';
+  diarySceneIds().forEach(function (id, i) { box.appendChild(diaryEntryEl(sceneById(id), i === 0)); });
+  if (window.Glossary) Glossary.refresh();
 }
 function refreshWrite() {
   const ok = diaryDone();
@@ -636,29 +679,6 @@ function refreshWrite() {
     if (b && !(id === 'subBtn' && b.textContent === UI.submitting)) b.disabled = !ok;
   });
   const n = document.getElementById('diaryNote'); if (n) n.hidden = ok;
-  const d = state.diary, r = roleObj();
-  const sc = d.scene ? sceneById(Number(d.scene)) : null;
-  const a = sc ? state.answers[sc.id] : null;
-  const dc = document.getElementById('diaryCtx');
-  if (dc) {
-    dc.textContent = '';
-    const box = h('div', { class: 'diary-text' });
-    if (sc) {
-      box.appendChild(h('p', { class: 'role-tag', text: '일기 날짜 ' + sc.date + ' · 장면 ' + sc.id + ' · ' + UI.roleLabel + ' ' + (r ? r.name : '') }));
-      if (a && a.opt) box.appendChild(h('p', { text: '그날 내 선택 ' + dispLetter(sc, a.opt) + '. ' + optText(sc, a.opt) }));
-    }
-    const pt = portraitEl(r, 'portrait portrait-sm');
-    if (pt) dc.appendChild(pt);
-    dc.appendChild(box);
-    dc.hidden = !box.childNodes.length;
-  }
-  const rr = document.getElementById('sceneReread');
-  if (rr && rr.dataset.scene !== String(d.scene || '')) {
-    rr.dataset.scene = String(d.scene || '');
-    rr.textContent = '';
-    if (sc) rr.appendChild(h('details', {}, [h('summary', {}, [svg(ICON.chev), UI.rereadScene]), h('div', { class: 'details-body' }, h('p', { text: sc.common }))]));
-  }
-  if (window.Glossary) Glossary.refresh();
 }
 
 /* ───────── 모달: 처음부터 다시하기 ───────── */
@@ -718,6 +738,10 @@ function init() {
   if (saved && saved.step === 'finale') saved.step = 'recap'; /* 예전에 저장된 진행분 */
   if (saved && saved.step && STEPS.indexOf(saved.step) >= 0 && (!qSid || qSid === saved.sid)) state = Object.assign(freshState('', ''), saved);
   if (saved && saved.intro && !state.introA && !state.introB) state.introA = saved.intro;
+  const dy = state.diary;
+  if (dy && dy.scene !== undefined) { state.diary = { scenes: dy.scene ? [String(dy.scene)] : [], texts: dy.scene ? { [dy.scene]: dy.text || '' } : {} }; }
+  if (!state.diary || !Array.isArray(state.diary.scenes)) state.diary = { scenes: [], texts: {} };
+  if (!state.diary.texts) state.diary.texts = {};
   if (qSid && !state.sid) state.sid = qSid;
   if (qName && !state.name) state.name = qName;
   if (PREVIEW) {
