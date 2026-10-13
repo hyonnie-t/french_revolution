@@ -247,3 +247,6 @@ details > .details-body { padding: 0 var(--x4) var(--x4); display: flex; flex-di
 
 button.term { padding: 10px 2px; margin: -10px 0; font-size: inherit; line-height: inherit; font-weight: inherit; color: inherit;
   text-decoration-style: dotted; text-decoration-thickness: 1.5px; text-decoration-color: var(--stroke-brand-solid); text-underline-offset: 3px; }
+
+/* 복사 성공 뒤에 나오는 패들렛 영역 */
+.pad-after { margin-top: var(--x3); }

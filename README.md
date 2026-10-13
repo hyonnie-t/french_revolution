@@ -5,7 +5,7 @@
 - 파일: `index.html` / `style.css` / `data.js`(학생 화면 문구, 핸드오프 5번) / `app.js`(화면·상태·제출) / `snippets/`(focus_guard, glossary — history26 레포 사본)
 - URL 파라미터: `?sid=20512&name=이름` 자동채움, `?preview=1` 미리보기(저장 안 함)
 - 화면 흐름: 시작 질문 → 역할 → 장면 1~6(3은 조항 고르기 포함) → 돌아보기(연표·거미줄 그래프·내보내기). 인권 선언과 지켜졌는지 잇는 마무리 글(일기)은 2026-10-13에 뺐다
-- 내보내기: "내 글 복사하기" / "복사하고 패들렛 열기"(`CONFIG.PADLET_URL` 또는 `?padlet=https://padlet.com/...`, 비어 있으면 버튼 숨김) / "기록하기"
+- 내보내기: "내 글 복사하기"(성공하면 그 아래에 "패들렛 열기" 버튼이 나온다. `CONFIG.PADLET_URL` 또는 `?padlet=https://padlet.com/...`, 주소가 없으면 버튼 대신 "포털의 내 패들렛 열기로 가서 붙여넣어 주세요" 안내) / "기록하기"
 - 기록: 돌아보기 화면 "기록하기"가 history26_backend 기본 제출 경로(`gameName` 필수)로 POST. `reflection`에는 "[내 유형] ..." 한 줄이 들어가고(예전 일기 자리), 장면별 선택·이유는 `choicesJson.scenes`에 있다. `choicesJson`의 역할 키는 `persona`(백엔드 칭호 판정이 `role` 키를 읽음)
 - 임시값: `CONFIG.GAME_NAME = '프랑스혁명_타임라인'` — 포털 차시 id가 정해지면 교체
 - 장면 이미지: `assets/scenes/scene-N.webp` 를 넣고 `data.js`의 `image.src`만 채우면 된다(비어 있거나 파일이 없으면 영역 숨김)

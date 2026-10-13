@@ -36,7 +36,7 @@ const UI = {
   legend: '선택 표시',
   timelineTitle: '혁명의 흐름',
   copy: '내 글 복사하기', copied: '복사했어요', copyFail: '복사하지 못했어요. 글을 직접 선택해서 복사해 주세요',
-  padlet: '복사하고 패들렛 열기', padletCopied: '복사했어요. 패들렛에 붙여넣어 주세요',
+  padletOpen: '패들렛 열기', padletNoUrl: '복사했어요. 포털의 "내 패들렛 열기"로 가서 붙여넣어 주세요.', padletCopied: '복사했어요. 패들렛에 붙여넣어 주세요',
   outTitle: '패들렛에 올리기', outLead: '복사한 글을 패들렛에 붙여넣어 올려요.',
   writeTitle: '일기 쓰기', writeLead: '일기로 쓸 장면을 고르고, 그날 내 역할이 되어 써요.',
   needAllDiary: '장면을 고르고 일기를 쓰면 복사하고 기록할 수 있어요',
@@ -396,7 +396,7 @@ function buildCopyText() {
   if (ds) lines.push('[일기] 장면 ' + ds.id + ' (' + ds.date + ') / ' + oneLine(d.text));
   return lines.join('\n');
 }
-function copyText(text, okMsg) {
+function copyText(text, okMsg, onOk) {
   const fallback = function () {
     const ta = h('textarea', { 'aria-hidden': 'true', style: 'position:fixed;left:-9999px;top:0' });
     ta.value = text; document.body.appendChild(ta); ta.select();
@@ -404,9 +404,10 @@ function copyText(text, okMsg) {
     try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
     document.body.removeChild(ta);
     toast(ok ? (okMsg || UI.copied) : UI.copyFail);
+    if (ok && onOk) onOk();
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(function () { toast(okMsg || UI.copied); }, fallback);
+    navigator.clipboard.writeText(text).then(function () { toast(okMsg || UI.copied); if (onOk) onOk(); }, fallback);
   } else fallback();
 }
 
@@ -591,13 +592,18 @@ function renderWrite(root) {
     ])
   ]);
 
+  // v-pad: 복사에 성공한 뒤에야 패들렛 버튼이 나온다(복사 전엔 숨김). 주소가 없으면 포털에서 열도록 안내만 보인다.
   const url = openPadlet();
-  const copyBtn = h('button', { type: 'button', class: 'btn btn-primary', id: 'copyBtn', onclick: function () { if (diaryDone()) copyText(buildCopyText()); } }, UI.copy);
-  const padBtn = url ? h('button', { type: 'button', class: 'btn btn-outline', id: 'padBtn', onclick: function () {
-    if (!diaryDone()) return;
-    copyText(buildCopyText(), UI.padletCopied);
-    window.open(url, '_blank', 'noopener,noreferrer');
-  } }, [UI.padlet, svg('M6 3.5H3.5v9h9V10M9 3.5h3.5V7M12.5 3.5L7.5 8.5')]) : null;
+  const padBox = h('div', { class: 'pad-after', id: 'padAfter', hidden: true });
+  const showPad = function () {
+    padBox.textContent = '';
+    if (url) padBox.appendChild(h('button', { type: 'button', class: 'btn btn-primary', id: 'padBtn', onclick: function () {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } }, [UI.padletOpen, svg('M6 3.5H3.5v9h9V10M9 3.5h3.5V7M12.5 3.5L7.5 8.5')]));
+    else padBox.appendChild(h('p', { class: 'muted', text: UI.padletNoUrl }));
+    padBox.hidden = false;
+  };
+  const copyBtn = h('button', { type: 'button', class: 'btn btn-primary', id: 'copyBtn', onclick: function () { if (diaryDone()) copyText(buildCopyText(), UI.padletCopied, showPad); } }, UI.copy);
   const subBtn = h('button', { type: 'button', class: 'btn btn-outline', id: 'subBtn', onclick: function () { if (diaryDone()) submitRecord(subBtn); } }, state.submitted ? UI.submitAgain : UI.submit);
 
   root.appendChild(h('section', { class: 'card' }, [
@@ -614,7 +620,8 @@ function renderWrite(root) {
   root.appendChild(h('section', { class: 'card' }, [
     h('h2', { text: UI.outTitle }),
     h('p', { class: 'muted', text: UI.outLead }),
-    h('div', { class: 'btn-row' }, [copyBtn, padBtn, subBtn])
+    h('div', { class: 'btn-row' }, [copyBtn, subBtn]),
+    padBox
   ]));
   root.appendChild(h('div', { class: 'nav-row' }, [
     h('button', { type: 'button', class: 'btn', onclick: prevHandler() }, UI.prev),
@@ -624,7 +631,7 @@ function renderWrite(root) {
 }
 function refreshWrite() {
   const ok = diaryDone();
-  ['copyBtn', 'padBtn', 'subBtn'].forEach(function (id) {
+  ['copyBtn', 'subBtn'].forEach(function (id) {
     const b = document.getElementById(id);
     if (b && !(id === 'subBtn' && b.textContent === UI.submitting)) b.disabled = !ok;
   });
